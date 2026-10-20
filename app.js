@@ -48,7 +48,11 @@ const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;
 if(!Recognition){$('#mic-tip').textContent='可用下方输入框和键盘听写麦克风';}
 $('#mic').onclick=()=>{stop();if(!Recognition){tell('此浏览器不支持直接语音识别。请点输入框，再用 iPad 键盘的听写麦克风。');$('#query').focus();return;}if(!window.isSecureContext){tell('麦克风需要 HTTPS 网站。请先部署，或使用键盘听写。');return;}if(listening){recognition.stop();return;}const speechMode=mode;recognition=new Recognition();recognition.lang=mode==='cn'?'zh-CN':$('#speech-language').value;recognition.interimResults=true;recognition.continuous=false;let finalText='';recognition.onstart=()=>{listening=true;$('#mic').classList.add('listening');$('#mic').setAttribute('aria-pressed','true');$('#mic-label').textContent='我在听，点一下结束';tell('请说话…');};recognition.onresult=e=>{let result='';finalText='';for(const r of e.results){result+=r[0].transcript;if(r.isFinal)finalText+=r[0].transcript;}$('#query').value=result;};recognition.onerror=e=>{finalText='';if(e.error==='aborted')return;tell(e.error==='not-allowed'?'没有获得麦克风权限，请在 Safari 网站设置中允许，或使用键盘听写。':e.error==='no-speech'?'没有听清，靠近话筒再试试。':'语音识别暂时不可用，请用输入框或键盘听写。');};recognition.onend=()=>{listening=false;$('#mic').classList.remove('listening');$('#mic').setAttribute('aria-pressed','false');$('#mic-label').textContent='语音告诉我你的问题';if(finalText&&speechMode===mode)query(finalText);};try{recognition.start();}catch{tell('麦克风暂时无法启动，请稍后重试。');}};
 window.addEventListener('pagehide',()=>{stop();if(listening)recognition?.abort();});window.addEventListener('offline',()=>$('#connection').textContent='离线中 · 常用词库与已缓存的笔顺仍可使用。');window.addEventListener('online',()=>$('#connection').textContent='已联网，来问一个问题吧。');
-if('serviceWorker'in navigator&&window.isSecureContext)navigator.serviceWorker.register('sw.js').catch(()=>{$('#connection').textContent='离线缓存尚未开启，当前可联网使用。';});
+if('serviceWorker'in navigator&&window.isSecureContext){
+ let reloading=false;const hadController=!!navigator.serviceWorker.controller;
+ navigator.serviceWorker.addEventListener('controllerchange',()=>{if(hadController&&!reloading){reloading=true;location.reload();}});
+ navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).then(reg=>reg.update()).catch(()=>{$('#connection').textContent='离线缓存尚未开启，当前可联网使用。';});
+}
 renderRecent();ready.then(()=>{if(mode==='cn'&&queryRun===0)loadChinese('木',++queryRun);});
 
 let curriculumBook;
