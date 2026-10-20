@@ -8,3 +8,5 @@ body{margin:0}button,a,input{-webkit-tap-highlight-color:transparent}button{curs
 #learning-buddy #speech-language-label{margin:10px 0 0}#learning-buddy select{font:inherit;color:var(--ink);border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:6px;min-height:44px}
 
 #curriculum-list{max-height:50vh;overflow:auto;margin:18px 0}#curriculum-list section{margin-bottom:18px}#curriculum-kind{font:inherit;padding:8px;border-radius:8px}#curriculum-dialog a{color:#9c4c3e}
+
+#learning-buddy .nav-icon{width:25px;height:25px;display:block;margin:0 auto 5px}@media(max-width:440px){#learning-buddy .nav-icon{display:inline-block;width:21px;height:21px;margin:0;vertical-align:middle}}
