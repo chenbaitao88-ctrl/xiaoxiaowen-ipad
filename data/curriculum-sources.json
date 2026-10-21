@@ -79,14 +79,16 @@
     {
       "series": "外研新思维英语·少儿版",
       "scope": "入门级、1—6册",
-      "status": "全套词表未录入；公开页面核实第2册ISBN 978-7-5213-3853-9",
+      "status": "第1册按用户提供的118—123页词表图片录入，332个单元词项（去重330项）；其他册次未录入",
       "source": "https://www.viaton.com.cn/book/show-1706-15.html",
-      "resource": "https://xswkids.unischool.cn/"
+      "resource": "https://xswkids.unischool.cn/",
+      "wordlistSource": "https://www.xiaohongshu.com/discovery/item/684be1930000000023003d71"
     },
     {
       "series": "北京版英语",
       "scope": "小学全套（含预备级）",
-      "status": "待核实2024审查新版资源；未导入旧版词表"
+      "status": "用户提供的76行二上复习词表已录入，含两组同义写法共78个词形；未标注单元、出版年份待核对，非官方全册完整性确认",
+      "source": "https://www.xiaohongshu.com/explore/6778ee1b000000000902d8eb"
     }
   ],
   "commonLibrary": {
@@ -94,7 +96,7 @@
     "characters": 3500,
     "words": 1899,
     "wordsWithDefinition": 1216,
-    "englishEntries": 1180,
+    "englishEntries": 1327,
     "scope": "小学常用参考库，不代表指定版本教材全套完成"
   }
 }
