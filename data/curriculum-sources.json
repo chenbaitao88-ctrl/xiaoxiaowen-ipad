@@ -88,5 +88,13 @@
       "scope": "小学全套（含预备级）",
       "status": "待核实2024审查新版资源；未导入旧版词表"
     }
-  ]
+  ],
+  "commonLibrary": {
+    "version": "1.2.0",
+    "characters": 3500,
+    "words": 1899,
+    "wordsWithDefinition": 1216,
+    "englishEntries": 1180,
+    "scope": "小学常用参考库，不代表指定版本教材全套完成"
+  }
 }
