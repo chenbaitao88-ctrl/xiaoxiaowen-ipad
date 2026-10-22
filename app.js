@@ -11,9 +11,31 @@ function tell(s){$('#feedback').textContent=s;}
 function saveStore(){try{localStorage.setItem(STORE,JSON.stringify(stored));}catch{tell('本机存储空间不足，这次查询未能保存。');}}
 function node(tag,text,cls){const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e;}
 function stop(){run++;playing=false;if('speechSynthesis'in window)speechSynthesis.cancel();if(writer){writer.pauseAnimation();writer.showCharacter({duration:0});}$('#hear-strokes').innerHTML='<svg class="audio-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M15 8a6 6 0 0 1 0 8M18 5a10 10 0 0 1 0 14"/></svg><span>听笔顺</span>';$('#see-strokes').textContent='▷ 看怎么写';$('#spell-en').innerHTML='<svg class="audio-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M15 8a6 6 0 0 1 0 8M18 5a10 10 0 0 1 0 14"/></svg><span>听拼写</span>';$('#read-en').textContent='▷ 看拼写';$$('#stroke-strip svg,.spelling span').forEach(e=>e.classList.remove('active','current'));}
-function talk(text,lang,token=run,rate=.65){return new Promise(resolve=>{
+function voiceLanguage(v){return v.lang.replace(/_/g,'-').toLowerCase();}
+function chooseVoice(voices,lang){
+ const target=lang.toLowerCase(),family=target.split('-')[0];
+ // Mandarin must not fall back to a Cantonese voice.
+ const candidates=voices.filter(v=>family==='zh'?/^zh-(cn|sg|hans)(-|$)/.test(voiceLanguage(v)):voiceLanguage(v).split('-')[0]===family);
+ const preference=stored.speechVoices?.[lang];
+ const saved=candidates.find(v=>v.voiceURI===preference);if(saved)return saved;
+ const score=v=>(voiceLanguage(v)===target?40:0)+(/ting.?ting|tingting|xiaoxiao|xiaoyi|samantha|karen|moira|tessa|ava|allison|susan|zira|jenny|aria/i.test(v.name)?100:0)+(/premium|enhanced|高质量|增强/i.test(v.name)?30:0)-(/compact/i.test(v.name)?10:0);
+ return candidates.map((voice,index)=>({voice,index,score:score(voice)})).sort((a,b)=>b.score-a.score||a.index-b.index)[0]?.voice;
+}
+function refreshSpeechVoices(){
+ if(!('speechSynthesis'in window))return;
+ const voices=speechSynthesis.getVoices();
+ for(const lang of ['zh-CN','en-US']){
+  const select=document.getElementById('voice-'+lang);if(!select)continue;
+  select.replaceChildren(new Option('自动选择（优先清晰女声）',''));
+  const family=lang.split('-')[0];
+  for(const v of voices.filter(v=>family==='zh'?/^zh-(cn|sg|hans)(-|$)/.test(voiceLanguage(v)):voiceLanguage(v).startsWith('en-'))){select.add(new Option(v.name+' · '+v.lang,v.voiceURI));}
+  select.value=stored.speechVoices?.[lang]||'';
+  if(select.selectedIndex<0)select.value='';
+ }
+}
+function talk(text,lang,token=run,rate=.78){return new Promise(resolve=>{
  if(token!==run)return resolve();if(!('speechSynthesis'in window)){tell('设备不支持朗读，仍可看笔顺和文字。');return resolve();}
- const u=new SpeechSynthesisUtterance(text);u.lang=lang;u.rate=Math.min(1.5,Math.max(.5,rate));u.volume=1;u.pitch=1;const voices=speechSynthesis.getVoices();const v=voices.find(v=>v.lang.replace('_','-')===lang)||voices.find(v=>v.lang.startsWith(lang.slice(0,2)));if(v)u.voice=v;
+ const u=new SpeechSynthesisUtterance(text);u.lang=lang;u.rate=Math.min(1.5,Math.max(.5,rate));u.volume=1;u.pitch=1;const v=chooseVoice(speechSynthesis.getVoices(),lang);if(v){u.voice=v;u.lang=v.lang;}
  let finished=false;const done=()=>{if(finished)return;finished=true;clearTimeout(timer);resolve();};const timer=setTimeout(()=>{if(token===run)tell('朗读未完成，请检查设备声音或下载对应语言的系统声音。');done();},Math.max(6000,text.length*400));u.onend=done;u.onerror=e=>{if(token===run&&!['canceled','interrupted'].includes(e.error))tell('未能播放声音，请检查设备音量与系统语言声音。');done();};speechSynthesis.resume();speechSynthesis.speak(u);
 });}
 function setMode(next){const changed=mode!==next;if(listening)recognition?.abort();queryRun++;stop();mode=next;$('#auto-language-note').hidden=mode!=='en';$$('[data-mode]').forEach(e=>e.setAttribute('aria-pressed',String(e.dataset.mode===mode)));$('#question').textContent=mode==='cn'?'你想知道哪个字？':'你想知道哪个单词？';$('#hint').textContent=mode==='cn'?'比如说：“树木的木怎么写？”':'比如说：“苹果用英语怎么说？”';$('#query').placeholder=mode==='cn'?'树木的木怎么写？':'苹果用英语怎么说？';$('#candidates').replaceChildren();tell('');
@@ -112,3 +134,11 @@ window.addEventListener('visibilitychange',()=>{if(document.hidden&&dictationSta
 route();
 
 $('#lesson-done').onclick=()=>{$('#dictation-lesson-picker').classList.add('selection-confirmed');$('#dictation-lesson-picker').open=false;$('#dictation-lesson-summary').focus();};
+
+refreshSpeechVoices();
+if('speechSynthesis'in window)speechSynthesis.addEventListener('voiceschanged',refreshSpeechVoices);
+window.addEventListener('pageshow',refreshSpeechVoices);
+for(const lang of ['zh-CN','en-US']){
+ document.getElementById('voice-'+lang).onchange=e=>{stored.speechVoices={...stored.speechVoices,[lang]:e.target.value};saveStore();stop();};
+ document.getElementById('voice-test-'+lang).onclick=()=>{stop();talk(lang==='zh-CN'?'你好，我是小小问。一起学习汉字，听清每一个读音。':'Hello! Let us learn together. Apple, book, school.',lang);};
+}
