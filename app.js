@@ -7,7 +7,7 @@ if(!stored.historyBookMigrated){for(const item of stored.saved){if(!stored.histo
 let mode='cn',writer=null,current={type:'cn',text:'木',meaning:'',pinyin:'mù'},strokeNames=[],glyph=null,run=0,queryRun=0,playing=false,recognition=null,listening=false;
 let english=[],wordMap={},commonLibrary=null,wordLookup=new Map(),activeWord=null,polyphonic={};
 let lastChinese='木',lastEnglish={en:'apple',zh:'苹果'};
-const ready=Promise.all([fetch('data/english.json').then(r=>r.json()),fetch('data/words.json').then(r=>r.json()),fetch('data/primary-common.json').then(r=>r.json()),fetch('data/polyphonic.json').then(r=>r.json())]).then(([en,words,common,poly])=>{english=en;wordMap=words;commonLibrary=common;polyphonic=poly;wordLookup=new Map(common.words.map(w=>[w.text,w]));}).catch(()=>tell('词库暂未加载，请检查网络并刷新。'));
+const ready=Promise.all([fetch('data/english.json?v=1.3.18').then(r=>r.json()),fetch('data/words.json').then(r=>r.json()),fetch('data/primary-common.json').then(r=>r.json()),fetch('data/polyphonic.json').then(r=>r.json())]).then(([en,words,common,poly])=>{english=en;wordMap=words;commonLibrary=common;polyphonic=poly;wordLookup=new Map(common.words.map(w=>[w.text,w]));}).catch(()=>tell('词库暂未加载，请检查网络并刷新。'));
 function tell(s){$('#feedback').textContent=s;}
 function saveStore(){try{localStorage.setItem(STORE,JSON.stringify(stored));}catch{tell('本机存储空间不足，这次查询未能保存。');}}
 function node(tag,text,cls){const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e;}
