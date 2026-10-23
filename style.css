@@ -94,3 +94,5 @@ body{margin:0}button,a,input{-webkit-tap-highlight-color:transparent}button{curs
 #learning-buddy .speech-settings{margin:16px 0;padding:14px;border:1px solid var(--line);border-radius:14px}#learning-buddy .speech-settings summary{cursor:pointer}#learning-buddy .speech-options{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:end}#learning-buddy .speech-options label{display:grid;gap:6px;min-width:0}#learning-buddy .speech-options select{width:100%;min-width:0;font:inherit;padding:10px}#learning-buddy .speech-options button{padding:10px;border-radius:10px;background:var(--tint)}
 
 #learning-buddy #ask-page>header .hello{font-size:clamp(24px,4vw,32px);font-weight:750;line-height:1.35;color:var(--orange);margin:0 0 14px;letter-spacing:.2px}
+
+#learning-buddy .speech-query-language{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px;font-size:14px}#learning-buddy .speech-query-language select{max-width:100%;font:inherit;padding:9px;border:1px solid var(--line);border-radius:10px;background:var(--panel);color:var(--ink)}
