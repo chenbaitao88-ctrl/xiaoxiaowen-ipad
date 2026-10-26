@@ -7,7 +7,7 @@ if(!stored.historyBookMigrated){for(const item of stored.saved){if(!stored.histo
 let mode='cn',writer=null,current={type:'cn',text:'木',meaning:'',pinyin:'mù'},strokeNames=[],glyph=null,run=0,queryRun=0,playing=false,recognition=null,listening=false;
 let english=[],wordMap={},commonLibrary=null,wordLookup=new Map(),activeWord=null,polyphonic={};
 let lastChinese='木',lastEnglish={en:'apple',zh:'苹果'};
-const ready=Promise.all([fetch('data/english.json?v=1.3.18').then(r=>r.json()),fetch('data/words.json').then(r=>r.json()),fetch('data/primary-common.json').then(r=>r.json()),fetch('data/polyphonic.json').then(r=>r.json())]).then(([en,words,common,poly])=>{english=en;wordMap=words;commonLibrary=common;polyphonic=poly;wordLookup=new Map(common.words.map(w=>[w.text,w]));}).catch(()=>tell('词库暂未加载，请检查网络并刷新。'));
+const ready=Promise.all([fetch('data/english.json?v=1.3.22').then(r=>r.json()),fetch('data/words.json?v=1.3.22').then(r=>r.json()),fetch('data/primary-common.json').then(r=>r.json()),fetch('data/polyphonic.json?v=1.3.22').then(r=>r.json())]).then(([en,words,common,poly])=>{english=en;wordMap=words;commonLibrary=common;polyphonic=poly;wordLookup=new Map(common.words.map(w=>[w.text,w]));}).catch(()=>tell('词库暂未加载，请检查网络并刷新。'));
 function tell(s){$('#feedback').textContent=s;}
 function saveStore(){try{localStorage.setItem(STORE,JSON.stringify(stored));}catch{tell('本机存储空间不足，这次查询未能保存。');}}
 function node(tag,text,cls){const e=document.createElement(tag);if(text!==undefined)e.textContent=text;if(cls)e.className=cls;return e;}
@@ -46,7 +46,9 @@ function setMode(next){const changed=mode!==next;if(listening)recognition?.abort
  if(changed){$('#query').value='';const id=queryRun;ready.then(()=>{if(id!==queryRun)return;if(mode==='en')renderEnglish(lastEnglish,!!lastEnglish.online);else loadChinese(lastChinese,id);});}
 }
 function pronunciationButton(char,group){const b=node('button',undefined,'pronunciation-audio');b.innerHTML=$('#read-cn').innerHTML;b.setAttribute('aria-label','听 '+group.pinyin+' 的读音');b.title='听读音：'+group.pinyin;b.disabled=false;b.onclick=()=>{stop();talk(group.speechChar||char,'zh-CN');};return b;}
-function renderPronunciations(char,pinyin){const groups=polyphonic[char];const box=$('#pinyin');box.replaceChildren();$('#read-cn').hidden=!!(groups?.length>1);box.classList.toggle('multiple-pronunciations',!!(groups?.length>1));if(groups?.length>1){for(const group of groups){const pair=node('span',undefined,'pronunciation-pair');pair.append(node('span',group.pinyin),pronunciationButton(char,group));box.append(pair);}}else box.textContent=pinyin;}
+let pronunciationContext='';
+function pronunciationGroupsFor(char){const groups=polyphonic[char];if(groups&&pronunciationContext.includes('薄荷')&&char==='薄')groups.sort((a,b)=>Number(b.pinyin==='bò')-Number(a.pinyin==='bò'));return groups;}
+function renderPronunciations(char,pinyin){const groups=pronunciationGroupsFor(char);const box=$('#pinyin');box.replaceChildren();$('#read-cn').hidden=!!(groups?.length>1);box.classList.toggle('multiple-pronunciations',!!(groups?.length>1));if(groups?.length>1){for(const group of groups){const pair=node('span',undefined,'pronunciation-pair');pair.append(node('span',group.pinyin),pronunciationButton(char,group));box.append(pair);}}else box.textContent=pinyin;}
 function updateSave(){$('#save').hidden=true;}
 function remember(){const item={type:current.type,text:current.text,meaning:current.meaning,pinyin:current.pinyin};stored.history=[item,...stored.history.filter(e=>!(e.type===item.type&&e.text===item.text))];saveStore();renderRecent();updateSave();}
 function itemButton(item){const b=node('button',undefined,'recent-item');const title=node('span',item.text,'recent-glyph');if(item.type==='en'){title.style.fontSize='17px';title.style.overflowWrap='anywhere';}const d=node('div');d.append(node('small',item.type==='cn'?(item.pinyin||'汉字'):'英语'),node('p',item.meaning||''));b.append(title,d);b.onclick=()=>{setMode(item.type);location.hash='ask';showPage('ask');$('#query').value=item.text;query(item.text);};return b;}
@@ -70,6 +72,7 @@ async function timedFetch(url){const controller=new AbortController();const time
 async function onlineTranslate(text,from,to,id){const {response,data}=await timedFetch('https://api.mymemory.translated.net/get?'+new URLSearchParams({q:text,langpair:from+'|'+to}));if(id!==queryRun||!response.ok||Number(data.responseStatus)!==200||data.quotaFinished)throw Error('translation unavailable');return data.responseData?.translatedText||'';}
 async function lookupExactWordDetails(word,id){const {response,data}=await timedFetch('https://api.dictionaryapi.dev/api/v2/entries/en/'+encodeURIComponent(word.toLowerCase()));if(!response.ok)throw Error('dictionary unavailable');if(id!==queryRun)throw Error('stale query');const entry=data[0],phonetic=entry.phonetics?.find(p=>p.text)?.text||entry.phonetic||'';let definition='',example='';for(const meaning of entry.meanings||[]){const found=meaning.definitions?.find(d=>d.example);if(found){definition=meaning.definitions?.[0]?.definition||'';example=found.example;break;}if(!definition)definition=meaning.definitions?.[0]?.definition||'';}const [zh,translation]=await Promise.all([definition?onlineTranslate(definition,'en','zh-CN',id).catch(()=> ''):Promise.resolve(''),example?onlineTranslate(example,'en','zh-CN',id).catch(()=> ''):Promise.resolve('')]);return {ipa:phonetic.replace(/^\/(.*)\/$/,'$1'),ipaNote:'音标',zh:zh||definition,example:example||'I learned the word '+word+'.',translation};}
 async function lookupWordDetails(word,id){
+ if(word.includes(' '))return {};
  try{return await lookupExactWordDetails(word,id);}catch(error){
   if(id!==queryRun)throw error;
   const lower=word.toLowerCase(),forms=[];
@@ -181,6 +184,7 @@ query=async function(raw){
   tell('这次识别的内容不够清楚，请在输入框改正，或再说一次。');
   return;
  }
+ pronunciationContext=raw;
  if(mode!==detected)setMode(detected);
  return queryInSelectedMode(raw);
 };
