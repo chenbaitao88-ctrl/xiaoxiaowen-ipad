@@ -39,7 +39,7 @@ function talk(text,lang,token=run,rate=.78){return new Promise(resolve=>{
  const u=new SpeechSynthesisUtterance(text);u.lang=lang;u.rate=Math.min(1.5,Math.max(.5,rate));u.volume=1;u.pitch=1;const v=chooseVoice(speechSynthesis.getVoices(),lang);if(v){u.voice=v;u.lang=v.lang;}
  let finished=false;const done=()=>{if(finished)return;finished=true;clearTimeout(timer);resolve();};const timer=setTimeout(()=>{if(token===run)tell('朗读未完成，请检查设备声音或下载对应语言的系统声音。');done();},Math.max(6000,text.length*400));u.onend=done;u.onerror=e=>{if(token===run&&!['canceled','interrupted'].includes(e.error))tell('未能播放声音，请检查设备音量与系统语言声音。');done();};speechSynthesis.resume();speechSynthesis.speak(u);
 });}
-function setMode(next){const changed=mode!==next;if(listening)recognition?.abort();queryRun++;stop();mode=next;$('#auto-language-note').hidden=mode!=='en';$$('[data-mode]').forEach(e=>e.setAttribute('aria-pressed',String(e.dataset.mode===mode)));$('#question').textContent=mode==='cn'?'你想知道哪个字？':'你想知道哪个单词？';$('#hint').textContent=mode==='cn'?'比如说：“树木的木怎么写？”':'说英文单词，或切换“说中文”查中文词语';$('#query').placeholder=mode==='cn'?'树木的木怎么写？':'苹果用英语怎么说？';$('#candidates').replaceChildren();tell('');
+function setMode(next){const changed=mode!==next;if(listening)recognition?.abort();queryRun++;stop();mode=next;$('#auto-language-note').hidden=mode!=='en';$$('[data-mode]').forEach(e=>e.setAttribute('aria-pressed',String(e.dataset.mode===mode)));$('#question').textContent=mode==='cn'?'你想知道哪个字？':'你想知道哪个单词？';$('#hint').textContent=mode==='cn'?'比如说：“树木的木怎么写？”':'比如说：“carbohydrate 是什么意思？”';$('#query').placeholder=mode==='cn'?'树木的木怎么写？':'苹果用英语怎么说？';$('#candidates').replaceChildren();tell('');
  $('#chinese').hidden=mode!=='cn';$('#english').hidden=mode!=='en';
  $('#result-heading').textContent=mode==='cn'?'一起认识这个汉字':'一起认识这个单词';
  $('.result').setAttribute('aria-busy','false');
@@ -63,6 +63,7 @@ async function loadChinese(char,id){if(id!==queryRun||mode!=='cn')return;lastChi
 async function playStrokes(audio){if(!writer||!glyph)return;if(playing){stop();return;}stop();playing=true;const token=run;const activeWriter=writer;$('#hear-strokes').textContent='■ 停止';$('#see-strokes').textContent='■ 停止';await activeWriter.hideCharacter({duration:0});for(let i=0;i<glyph.strokes.length;i++){if(token!==run)return;$$('#stroke-strip svg').forEach((e,j)=>e.classList.toggle('active',i===j));await Promise.all([activeWriter.animateStroke(i),audio?talk(strokeNames[i],'zh-CN',token,.75):Promise.resolve()]);}if(token===run){playing=false;$('#hear-strokes').innerHTML='<svg class="audio-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M15 8a6 6 0 0 1 0 8M18 5a10 10 0 0 1 0 14"/></svg><span>听笔顺</span>';$('#see-strokes').textContent='▷ 看怎么写';$$('#stroke-strip svg').forEach(e=>e.classList.remove('active'));}}
 function extractChinese(text){text=text.replace(/[，。？！?！“”"\s]/g,'');const contextual=text.match(/([\u3400-\u9fff]{1,12})的([\u3400-\u9fff])/);if(contextual){const target=contextual[2],context=contextual[1].replace(/^(请问|请|帮我|查一下|查查|我想知道|我想查)/,'');if(context.includes(target))return [target];try{const sounds=c=>String(cnchar.spell(c,'tone','poly')).toLowerCase().replace(/[()]/g,'').split('|');const heard=sounds(target);const matches=[...new Set([...context])].filter(c=>sounds(c).some(py=>heard.includes(py)));if(matches.length)return matches;}catch{}return [target];}text=text.replace(/^(请问|请|帮我|查一下|查查|查找|我想知道|我想查)/,'').replace(/(这个字)?(怎么写|怎么读|的笔顺|的笔画|的拼音|如何写|如何读|笔顺|组词).*$/,'').replace(/这个字$/,'');return [...new Set([...text].filter(c=>/[\u3400-\u9fff]/.test(c)))];}
 function cleanEnglish(text){return text.trim().replace(/^[“”"'\s]+|[“”"'\s？！?。！.]+$/g,'').replace(/^(请问|请|帮我|查一下|查查|查找|我想知道|我想查)/,'').replace(/^(?:这个)?(?:英语|英文)?单词/,'').replace(/(用英语|用英文|英语|英文)(怎么说|怎么写|怎么拼|怎么读|是什么|叫什么).*$/,'').replace(/(这个单词|这个词)?(怎么拼写|怎么发音|怎么拼|怎么读|是什么意思|什么意思|怎么说|的英文|的英语).*$/,'').trim();}
+function spokenQueryMode(text,currentMode=mode){const term=cleanEnglish(text);if(/[\u3400-\u9fff]/.test(term)&&/[a-z]/i.test(term))return 'uncertain';if(/^[a-z]+(?:[ '-][a-z]+)*$/i.test(term))return 'en';if(/[\u3400-\u9fff]/.test(term)){if(/(?:用英语|用英文|英语怎么说|英文怎么说|英文单词|英语单词|的英语|的英文)/.test(text))return 'en';if(/的[\u3400-\u9fff]|怎么写|笔顺|拼音|组词/.test(text))return 'cn';return currentMode;}return 'uncertain';}
 
 function renderEnglish(entry,online=false){entry={...english.find(e=>e.en.toLowerCase()===entry.en.toLowerCase()),...entry};lastEnglish={...entry,online};stop();current={type:'en',text:entry.en,meaning:entry.zh,pinyin:''};$('#chinese').hidden=true;$('#english').hidden=false;$('#result-heading').textContent='一起认识这个单词';$('#english-word').textContent=entry.en;$('#english-ipa').textContent=entry.ipa?(entry.ipaNote||'音标')+' /'+entry.ipa+'/':'音标暂未收录';$('#english-meaning').textContent=entry.zh;$('#spelling').replaceChildren(...[...entry.en].filter(c=>/[a-z]/i.test(c)).map(c=>node('span',c)));$('#en-example').textContent=entry.example||'我学会了单词 “'+entry.en+'”。';$('#en-example-cn').textContent=entry.translation||(entry.example?'例句中文翻译暂不可用。':'这是系统生成的简单例句。');$('#translation-source').textContent=online?'联网词典与翻译 · 内容供学习参考。':'常用词库 · 点击“听拼写”，先读字母，再读整个单词。';$('#spell-en').disabled=!/^[a-z -]{1,45}$/i.test(entry.en);remember();tell('找到了，来听一听吧。');}
 async function timedFetch(url){const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),9000);try{const response=await fetch(url,{signal:controller.signal});const data=await response.json();return {response,data};}finally{clearTimeout(timer);}}
@@ -88,7 +89,21 @@ function route(){const page=location.hash.slice(1);showPage(['book','curriculum'
 function book(){location.hash='book';showPage('book');}window.addEventListener('hashchange',route);$$('[data-back-ask]').forEach(b=>b.onclick=()=>{location.hash='ask';showPage('ask');});$('#back-to-ask').onclick=()=>{location.hash='ask';showPage('ask');};$('#book-nav').onclick=book;$('#show-book').onclick=book;$('#ask-nav').onclick=()=>{location.hash='ask';showPage('ask');};function help(){location.hash='help';showPage('help');}$('#help-nav').onclick=help;$('#help-footer').onclick=help;$$('[data-close]').forEach(b=>b.onclick=()=>$('#'+b.dataset.close).close());$('#clear-history').onclick=()=>{if(confirm('清空这台设备上的全部查询记录和生字本？')){stored.history=[];saveStore();renderRecent();renderBook();}};$('#clear-all').onclick=()=>{if(confirm('删除这台设备上的全部查询记录和生字本？')){stored={history:[],saved:[]};saveStore();renderRecent();renderBook();updateSave();tell('本机记录已删除。');}};
 const Recognition=window.SpeechRecognition||window.webkitSpeechRecognition;
 if(!Recognition){$('#mic-tip').textContent='可用下方输入框和键盘听写麦克风';}
-$('#mic').onclick=()=>{stop();if(!Recognition){tell('此浏览器不支持直接语音识别。请点输入框，再用 iPad 键盘的听写麦克风。');$('#query').focus();return;}if(!window.isSecureContext){tell('麦克风需要 HTTPS 网站。请先部署，或使用键盘听写。');return;}if(listening){recognition.stop();return;}const speechMode=mode;recognition=new Recognition();recognition.lang=speechMode==='en'?$('#query-speech-language').value:'zh-CN';recognition.interimResults=true;recognition.continuous=false;let finalText='';recognition.onstart=()=>{listening=true;$('#mic').classList.add('listening');$('#mic').setAttribute('aria-pressed','true');$('#mic-label').textContent='我在听，点一下结束';tell('请说话…');};recognition.onresult=e=>{let result='';finalText='';for(const r of e.results){result+=r[0].transcript;if(r.isFinal)finalText+=r[0].transcript;}$('#query').value=result;};recognition.onerror=e=>{finalText='';if(e.error==='aborted')return;tell(e.error==='not-allowed'?'没有获得麦克风权限，请在 Safari 网站设置中允许，或使用键盘听写。':e.error==='no-speech'?'没有听清，靠近话筒再试试。':'语音识别暂时不可用，请用输入框或键盘听写。');};recognition.onend=()=>{listening=false;$('#mic').classList.remove('listening');$('#mic').setAttribute('aria-pressed','false');$('#mic-label').textContent='语音告诉我你的问题';if(finalText&&speechMode===mode)query(finalText);};try{recognition.start();}catch{tell('麦克风暂时无法启动，请稍后重试。');}};
+$('#mic').onclick=()=>{
+ stop();
+ if(!Recognition){tell('此浏览器不支持直接语音识别。请点输入框，再用 iPad 键盘的听写麦克风。');$('#query').focus();return;}
+ if(!window.isSecureContext){tell('麦克风需要 HTTPS 网站。请先部署，或使用键盘听写。');return;}
+ if(listening){recognition.stop();return;}
+ recognition=new Recognition();
+ recognition.interimResults=true;
+ recognition.continuous=false;
+ let finalText='';
+ recognition.onstart=()=>{listening=true;$('#mic').classList.add('listening');$('#mic').setAttribute('aria-pressed','true');$('#mic-label').textContent='我在听，点一下结束';tell('请说话…');};
+ recognition.onresult=e=>{let result='';finalText='';for(const r of e.results){result+=r[0].transcript;if(r.isFinal)finalText+=r[0].transcript;}$('#query').value=result;};
+ recognition.onerror=e=>{finalText='';if(e.error==='aborted')return;tell(e.error==='not-allowed'?'没有获得麦克风权限，请在 Safari 网站设置中允许，或使用键盘听写。':e.error==='no-speech'?'没有听清，靠近话筒再试试。':'语音识别暂时不可用，请用输入框或键盘听写。');};
+ recognition.onend=()=>{listening=false;$('#mic').classList.remove('listening');$('#mic').setAttribute('aria-pressed','false');$('#mic-label').textContent='语音告诉我你的问题';if(finalText)query(finalText);};
+ try{recognition.start();}catch{tell('麦克风暂时无法启动，请稍后重试。');}
+};
 window.addEventListener('pagehide',()=>{stop();if(listening)recognition?.abort();});window.addEventListener('offline',()=>$('#connection').textContent='离线中 · 常用词库与已缓存的笔顺仍可使用。');window.addEventListener('online',()=>$('#connection').textContent='已联网，来问一个问题吧。');
 if('serviceWorker'in navigator&&window.isSecureContext){
  let reloading=false;const hadController=!!navigator.serviceWorker.controller;
@@ -158,3 +173,14 @@ for(const lang of ['zh-CN','en-US']){
  document.getElementById('voice-'+lang).onchange=e=>{stored.speechVoices={...stored.speechVoices,[lang]:e.target.value};saveStore();stop();};
  document.getElementById('voice-test-'+lang).onclick=()=>{stop();talk(lang==='zh-CN'?'你好，我是小小问。一起学习汉字，听清每一个读音。':'Hello! Let us learn together. Apple, book, school.',lang);};
 }
+
+const queryInSelectedMode=query;
+query=async function(raw){
+ const detected=spokenQueryMode(raw);
+ if(detected==='uncertain'){
+  tell('这次识别的内容不够清楚，请在输入框改正，或再说一次。');
+  return;
+ }
+ if(mode!==detected)setMode(detected);
+ return queryInSelectedMode(raw);
+};
